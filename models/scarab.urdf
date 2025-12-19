@@ -1,0 +1,154 @@
+<?xml version="1.0" ?>
+<robot name="scarab">
+  <!-- 65mm quadrotor with scarab aerodynamic shell -->
+  
+  <link name="world"/>
+  
+  <link name="base_link">
+    <!-- Main body: 500g total -->
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.002"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.065 0.065 0.02"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.065 0.065 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  
+  <link name="rotor_1">
+    <!-- Front-left motor + prop -->
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.015" length="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="rotor_2">
+    <!-- Front-right motor -->
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.015" length="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="rotor_3">
+    <!-- Back-right motor -->
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.015" length="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="rotor_4">
+    <!-- Back-left motor -->
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.015" length="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="wing_left">
+    <!-- Left fixed wing -->
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00005" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.00005"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.05 0 0" rpy="0 0.2 0"/>
+      <geometry>
+        <box size="0.1 0.05 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="wing_right">
+    <!-- Right fixed wing -->
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00005" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.00005"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.05 0 0" rpy="0 0.2 0"/>
+      <geometry>
+        <box size="0.1 0.05 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <!-- Joints -->
+  <joint name="base_joint" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="rotor_1_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_1"/>
+    <origin xyz="0.0325 0.0325 0" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="rotor_2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_2"/>
+    <origin xyz="0.0325 -0.0325 0" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="rotor_3_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_3"/>
+    <origin xyz="-0.0325 -0.0325 0" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="rotor_4_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_4"/>
+    <origin xyz="-0.0325 0.0325 0" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="wing_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="wing_left"/>
+    <origin xyz="0 0.05 -0.01" rpy="0 0 0"/>
+  </joint>
+  
+  <joint name="wing_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="wing_right"/>
+    <origin xyz="0 -0.05 -0.01" rpy="0 0 0"/>
+  </joint>
+  
+</robot>
