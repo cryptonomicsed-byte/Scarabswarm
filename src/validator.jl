@@ -4,6 +4,7 @@
 
 using SHA
 using JSON
+using Dates
 
 struct TrajectoryProof
     trajectory_hash::String          # SHA256 of trajectory keyframes
@@ -50,7 +51,7 @@ function compute_trajectory_hash(checkpoints::Vector{TrajectoryCheckpoint})
     Deterministic hash: JSON serialize checkpoints, SHA256.
     Replicable by validators.
     """
-    json_str = json(Dict(
+    json_str = JSON.json(Dict(
         "checkpoints" => [Dict(
             "t" => c.t,
             "pos" => [c.position[i] for i in 1:3],
@@ -72,7 +73,7 @@ function compute_proof(states::Vector, execution_time::Float64)
     
     # IMU stream hash (sample every 5th checkpoint)
     imu_sample = [c.imu_accel for c in checkpoints[1:5:end]]
-    imu_json = json(imu_sample)
+    imu_json = JSON.json(imu_sample)
     imu_hash = bytes2hex(sha256(imu_json))
     
     # Compute energy (Pi 5: ~5W peak, assume 80% utilization)

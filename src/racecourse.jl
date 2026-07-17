@@ -60,7 +60,10 @@ function point_in_gate(pos::SVector{3}, gate::Gate, tolerance::Float64=0.25)
     return false
 end
 
-function check_gates_passed(trajectory::Vector{SVector{3}}, course::RaceCourse)
+function check_gates_passed(trajectory::Vector{<:SVector{3}}, course::RaceCourse)
+    # `Vector{SVector{3}}` (unparameterized element type) never matches a
+    # concrete `Vector{SVector{3,Float64}}` -- Vector is invariant in Julia,
+    # so this needs the covariant `Vector{<:SVector{3}}` bound instead.
     """
     Track which gates drone has passed, in order.
     """
@@ -105,12 +108,19 @@ function compute_race_score(states::Vector, course::RaceCourse)
     end
     
     if !race_started
+        # Same shape as the full return below -- print_swarm_results
+        # indexes every key unconditionally, so a partial Dict here was a
+        # real crash bug whenever any drone never entered the start zone.
         return Dict(
             "status" => "incomplete",
             "time" => Inf,
             "gates_passed" => 0,
+            "gates_list" => Int[],
+            "total_gates" => length(course.gates),
+            "trajectory_length" => 0.0,
+            "efficiency" => 0.0,
             "crash" => false,
-            "score" => 0.0
+            "score" => Inf
         )
     end
     

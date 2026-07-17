@@ -13,6 +13,8 @@ Run: julia --project=.. examples/race_demo.jl
 push!(LOAD_PATH, "../src")
 using ScarabSwarm
 using StaticArrays
+using JSON
+using Dates
 
 function main()
     println("🔥 SCARABSWARM RACE DEMO 🔥\n")
@@ -63,7 +65,6 @@ function main()
     end
     
     # Save results to JSON
-    using JSON
     output = Dict(
         "race_metadata" => Dict(
             "course_gates" => length(course.gates),
@@ -81,7 +82,15 @@ function main()
     )
     
     open("race_results.json", "w") do f
-        JSON.print(f, output, indent=2)
+        # JSON.print(..., indent=2) has no matching method for this
+        # Dict{String,Dict} type in the installed JSON.jl version -- use
+        # the same JSON.json(...) pattern already verified working in
+        # validator.jl instead.
+        # allownan=true: `time`/`score` are legitimately Inf for any drone
+        # that never reaches the finish zone in the race duration -- real
+        # data, not a bug, and the JSON spec's ban on Inf shouldn't silently
+        # crash a real result.
+        write(f, JSON.json(output; allownan=true))
     end
     
     println("Results saved to race_results.json")

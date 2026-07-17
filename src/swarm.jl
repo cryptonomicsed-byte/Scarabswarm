@@ -119,10 +119,13 @@ function simulate_swarm_race(drones::Dict, course::RaceCourse,
         all_states[drone_id] = init_state
     end
     
-    # Store trajectories
+    # Store trajectories. Seed each with the real t=0 initial state -- it
+    # was already computed above into all_states but never recorded here,
+    # so compute_race_score's start-zone check never saw a drone's true
+    # starting position, only its position after the first physics step.
     trajectories = Dict{Int, Vector{ScarabState}}()
-    for drone_id in keys(drones)
-        trajectories[drone_id] = []
+    for (drone_id, (dyn, init_state, ctrl)) in drones
+        trajectories[drone_id] = [init_state]
     end
     
     # Simulation loop
@@ -133,8 +136,11 @@ function simulate_swarm_race(drones::Dict, course::RaceCourse,
         for (drone_id, (dyn, _, ctrl)) in drones
             state = all_states[drone_id]
             
-            # Get motor commands from controller
-            motor_cmds = ctrl(drone_id, state)
+            # Get motor commands from controller. Every controller in this
+            # codebase (create_naive_controller, create_llm_controller) uses
+            # the single-arg (state) convention -- this call site was the
+            # only place assuming a (drone_id, state) signature.
+            motor_cmds = ctrl(state)
             state = ScarabState(state.t, state.position, state.velocity,
                                state.attitude, state.angular_velocity,
                                motor_cmds, state.imu_accel, state.imu_gyro)

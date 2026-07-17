@@ -21,14 +21,21 @@ struct ScarabDynamics
     Iyy::Float64
     Izz::Float64
     arm_length::Float64  # Distance from center to prop (m)
-    thrust_coeff::Float64  # Thrust = coeff * ω²
+    thrust_coeff::Float64  # F_per_motor = thrust_coeff * throttle^2 * mass * g, throttle in [0,1]
+                            # (NOT coeff*omega^2 despite the historical name -- `throttle`
+                            # here is the normalized 0-1 motor command from
+                            # parse_motor_commands, not a raw angular velocity in rad/s)
     drag_coeff::Float64
     mechanism::Mechanism  # RigidBodyDynamics mechanism
     state::MechanismState
 end
 
 function create_scarab_dynamics(urdf_path::String="models/scarab.urdf")
-    # Load URDF or create default
+    # Load URDF or create default. `try`/`catch` introduces its own scope in
+    # Julia, so `mechanism` must be declared local to the function first --
+    # an assignment inside either branch alone never escapes to the code
+    # below that uses it.
+    local mechanism
     try
         mechanism = parse_urdf(urdf_path)
     catch
@@ -39,17 +46,30 @@ function create_scarab_dynamics(urdf_path::String="models/scarab.urdf")
     
     state = MechanismState(mechanism)
     
-    # Physical parameters for 65mm quad
+    # Physical parameters for 65mm quad.
+    # ScarabDynamics is a plain positional struct (no keyword constructor
+    # defined) -- args must match its field order exactly: mass, Ixx, Iyy,
+    # Izz, arm_length, thrust_coeff, drag_coeff, mechanism, state.
     dynamics = ScarabDynamics(
-        mass=0.5,           # 500g
-        Ixx=0.001,          # kg⋅m²
-        Iyy=0.001,
-        Izz=0.002,
-        arm_length=0.0325,  # 65mm / 2
-        thrust_coeff=1e-6,  # Empirical
-        drag_coeff=0.01,
-        mechanism=mechanism,
-        state=state
+        0.5,     # mass (500g)
+        0.001,   # Ixx (kg⋅m²)
+        0.001,   # Iyy
+        0.002,   # Izz
+        0.0325,  # arm_length (65mm / 2)
+        1.0,     # thrust_coeff -- calibrated so 4-motor total thrust exactly
+                 # equals weight (mass*g) at throttle=0.5, i.e. real hover
+                 # authority around the midpoint. The previous value (1e-6)
+                 # was carried over from a real-ω² formula (thousands of
+                 # rad/s) but applied to a 0-1 throttle fraction instead --
+                 # six orders of magnitude too small, so every motor command
+                 # produced negligible thrust and the drone free-fell at
+                 # essentially exactly -g regardless of pilot input. This is
+                 # what made BOTH real agent-piloted flights (Hermes and
+                 # Omo-Koda2) crash identically: neither pilot ever had real
+                 # control authority, independent of either agent's decisions.
+        0.01,    # drag_coeff
+        mechanism,
+        state
     )
     
     return dynamics
@@ -133,6 +153,17 @@ function dynamics_step(dyn::ScarabDynamics, state::ScarabState, dt::Float64)
     new_yaw = yaw + r * dt
     
     new_angular_vel = state.angular_velocity + SVector(α_roll, α_pitch, α_yaw) * dt
+
+    # Safety clamp: this model has no damping term at all (pure P-control
+    # differential-thrust commands feeding gyroscopically-coupled angular
+    # acceleration, integrated with plain Euler at a fixed dt) -- real,
+    # unstable open-loop combinations exist and, uncaught, integrate to
+    # literal Inf (sin(Inf) errors downstream). Bound angular velocity to a
+    # generous but finite real-world range rather than letting a transient
+    # spike diverge numerically. Standard defensive practice in physics
+    # sims, not a fix for the underlying lack of a damping/PID loop --
+    # that's real control-tuning work, separate from numerical safety.
+    new_angular_vel = clamp.(new_angular_vel, -50.0, 50.0)  # rad/s, ~2800 deg/s ceiling
     
     # IMU readings (with noise in real case)
     imu_accel = SVector(ax, ay, az + g)  # Include gravity
