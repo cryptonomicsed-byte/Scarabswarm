@@ -1,7 +1,6 @@
-# Scarab flight dynamics — RigidBodyDynamics integration
+# Scarab flight dynamics — hand-rolled Euler integrator (rigid-body model; no external physics engine)
 # 65mm fixed-wing quadrotor with scarab aerodynamic shell
 
-using RigidBodyDynamics
 using StaticArrays
 
 struct ScarabState
@@ -25,31 +24,13 @@ struct ScarabDynamics
                             # (NOT coeff*omega^2 despite the historical name -- `throttle`
                             # here is the normalized 0-1 motor command from
                             # parse_motor_commands, not a raw angular velocity in rad/s)
-    drag_coeff::Float64
-    mechanism::Mechanism  # RigidBodyDynamics mechanism
-    state::MechanismState
 end
 
-function create_scarab_dynamics(urdf_path::String="models/scarab.urdf")
-    # Load URDF or create default. `try`/`catch` introduces its own scope in
-    # Julia, so `mechanism` must be declared local to the function first --
-    # an assignment inside either branch alone never escapes to the code
-    # below that uses it.
-    local mechanism
-    try
-        mechanism = parse_urdf(urdf_path)
-    catch
-        # Fallback: simple 6-DOF rigid body
-        world = RigidBody{Float64}("world")
-        mechanism = Mechanism(world)
-    end
-    
-    state = MechanismState(mechanism)
-    
+function create_scarab_dynamics()
     # Physical parameters for 65mm quad.
     # ScarabDynamics is a plain positional struct (no keyword constructor
     # defined) -- args must match its field order exactly: mass, Ixx, Iyy,
-    # Izz, arm_length, thrust_coeff, drag_coeff, mechanism, state.
+    # Izz, arm_length, thrust_coeff.
     dynamics = ScarabDynamics(
         0.5,     # mass (500g)
         0.001,   # Ixx (kg⋅m²)
@@ -67,9 +48,6 @@ function create_scarab_dynamics(urdf_path::String="models/scarab.urdf")
                  # what made BOTH real agent-piloted flights (Hermes and
                  # Omo-Koda2) crash identically: neither pilot ever had real
                  # control authority, independent of either agent's decisions.
-        0.01,    # drag_coeff
-        mechanism,
-        state
     )
     
     return dynamics

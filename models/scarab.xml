@@ -1,0 +1,34 @@
+<mujoco model="scarab">
+  <!-- 65mm quadrotor, MuJoCo MJCF model for the OPTIONAL MuJoCo.jl backend.
+       Mass/inertia/thrust match the hand-rolled Euler model in src/dynamics.jl:
+       mass 0.5 kg, Ixx/Iyy 0.001, Izz 0.002 kg·m², thrust_coeff 1.0,
+       arm_length 0.0325 m. Thrust mapping (see src/dynamics_mujoco.jl):
+       ctrl_i = thrust_coeff * m_i² * mass * g, i.e. hover at m_i = 0.5. -->
+  <compiler angle="radian" coordinate="local"/>
+  <option gravity="0 0 -9.81" timestep="0.01" integrator="Euler" iterations="20" tolerance="1e-8"/>
+
+  <default>
+    <geom density="0"/>
+  </default>
+
+  <worldbody>
+    <body name="base" pos="0 0 0">
+      <freejoint/>
+      <inertial pos="0 0 0" mass="0.5" diaginertia="0.001 0.001 0.002"/>
+      <geom type="box" size="0.0325 0.0325 0.01" rgba="0.8 0.5 0.1 1"/>
+      <!-- X-config rotor positions, arm_length 0.0325 m -->
+      <site name="rotor1" pos="0.0325 0.0325 0"/>
+      <site name="rotor2" pos="-0.0325 0.0325 0"/>
+      <site name="rotor3" pos="-0.0325 -0.0325 0"/>
+      <site name="rotor4" pos="0.0325 -0.0325 0"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- per-motor max thrust = thrust_coeff * mass * g = 1.0 * 0.5 * 9.81 = 4.905 N -->
+    <general name="thr1" site="rotor1" gear="0 0 1 0 0 0" ctrllimited="true" ctrlrange="0 4.905"/>
+    <general name="thr2" site="rotor2" gear="0 0 1 0 0 0" ctrllimited="true" ctrlrange="0 4.905"/>
+    <general name="thr3" site="rotor3" gear="0 0 1 0 0 0" ctrllimited="true" ctrlrange="0 4.905"/>
+    <general name="thr4" site="rotor4" gear="0 0 1 0 0 0" ctrllimited="true" ctrlrange="0 4.905"/>
+  </actuator>
+</mujoco>

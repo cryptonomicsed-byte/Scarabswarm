@@ -4,7 +4,7 @@ LLM-Piloted Scarab Demo — the real "LLM Drone" starting point.
 
 Queries a live local Ollama model (llama3.2:3b) for flight decisions
 every 10 sim steps (throttled — LLM inference ~100s of ms, flight loop
-~2ms), same real RigidBodyDynamics physics as race_demo.jl, no
+~2ms), same hand-rolled Euler physics as race_demo.jl, no
 simulated/faked responses.
 
 IMPORTANT DETERMINISM NOTE, not addressed anywhere in the original

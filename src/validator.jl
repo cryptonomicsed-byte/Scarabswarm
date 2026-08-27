@@ -64,6 +64,39 @@ function compute_trajectory_hash(checkpoints::Vector{TrajectoryCheckpoint})
     return bytes2hex(sha256(json_str))
 end
 
+
+# ── Cross-arch determinism (keyframe quantization) ─────────────────────────
+# Raw Float64 hashes are NOT portable across CPU architectures: sin/cos (libm)
+# and FMA contraction differ in the last ulp, so a validator on a different
+# host recomputes a slightly different trajectory and the exact SHA-256
+# mismatch fails verification even though the flight is identical to within
+# ~1e-9. Quantizing each keyframe to a fixed physical tolerance before hashing
+# makes the proof robust to that last-ulp drift: a 1e-9 position difference is
+# far below the 1e-3 m quantization step and washes out.
+
+function _quantize(x::Float64, eps::Float64)::Float64
+    eps <= 0 && return x
+    return round(x / eps) * eps
+end
+
+function quantize_trajectory(checkpoints::Vector{TrajectoryCheckpoint};
+                             pos_eps::Float64=1e-3, att_eps::Float64=1e-4,
+                             accel_eps::Float64=1e-3, gyro_eps::Float64=1e-4)
+    return [TrajectoryCheckpoint(
+        _quantize(c.t, pos_eps),
+        SVector(_quantize(c.position[1], pos_eps), _quantize(c.position[2], pos_eps), _quantize(c.position[3], pos_eps)),
+        SVector(_quantize(c.attitude[1], att_eps), _quantize(c.attitude[2], att_eps), _quantize(c.attitude[3], att_eps)),
+        SVector(_quantize(c.imu_accel[1], accel_eps), _quantize(c.imu_accel[2], accel_eps), _quantize(c.imu_accel[3], accel_eps)),
+        SVector(_quantize(c.imu_gyro[1], gyro_eps), _quantize(c.imu_gyro[2], gyro_eps), _quantize(c.imu_gyro[3], gyro_eps)),
+    ) for c in checkpoints]
+end
+
+function compute_quantized_trajectory_hash(checkpoints::Vector{TrajectoryCheckpoint}; kwargs...)
+    """Cross-arch-robust hash: quantize keyframes to physical tolerances first."""
+    return compute_trajectory_hash(quantize_trajectory(checkpoints; kwargs...))
+end
+
+
 function compute_proof(states::Vector, execution_time::Float64)
     """
     Generate trajectory proof from simulation states.

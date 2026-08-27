@@ -1,6 +1,5 @@
 module ScarabSwarm
 
-using RigidBodyDynamics
 using StaticArrays
 using LinearAlgebra
 using Distributed
