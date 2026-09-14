@@ -1,0 +1,27 @@
+[manifest]
+repo       = "ScarabSwarm"
+role       = "embodied-robot-simulation"
+version    = "0.1.0"
+security   = "medium"
+port       = 7793
+
+[protocol]
+kind       = "simulation-broker"
+engine     = "osovm-veilsim"
+
+[simulation]
+trajectories_per_run = 100000
+selection = "best-fit"
+proof     = "proof-of-simulation"
+
+[events]
+emits    = ["sim.started", "sim.completed", "policy.selected"]
+consumes = ["twin.updated", "vcp.session.active"]
+
+[receipts]
+kind = "simulation"
+arp  = true
+
+[dependencies]
+required  = ["vcp"]
+optional  = ["osovm", "witness", "vantage"]
