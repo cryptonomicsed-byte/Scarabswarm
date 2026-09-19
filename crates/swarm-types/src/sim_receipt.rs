@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use gix_types::{Gix1, GixKind, GixNamespace, RoutingHints};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -28,9 +29,29 @@ pub struct SimReceipt {
 
     pub created_at:       DateTime<Utc>,
     pub signature:        String,
+
+    /// GIX1 canonical_id (hex) — `Gix1(Simulation, OsovmExecution, receipt_id)`.
+    /// Stamped after construction via `stamp_gix1()`.
+    #[serde(default)]
+    pub gix1_canonical_id: Option<String>,
 }
 
 impl SimReceipt {
+    /// Stamp a GIX1 Simulation envelope onto this receipt (idempotent).
+    pub fn stamp_gix1(&mut self) {
+        if self.gix1_canonical_id.is_some() { return; }
+        let ts = self.created_at.timestamp_millis() as u64;
+        let env = Gix1::new(
+            GixKind::Simulation,
+            GixNamespace::OsovmExecution,
+            self.receipt_id.as_bytes(),
+            None,
+            ts,
+            RoutingHints::default(),
+        );
+        self.gix1_canonical_id = Some(hex::encode(env.canonical_id));
+    }
+
     pub fn canonical_hash(&self) -> String {
         let data = format!(
             "{}:{}:{}:{}:{}",
@@ -126,6 +147,63 @@ pub fn merkle_proof(leaf_hashes: &[String], idx: usize) -> Vec<String> {
     }
 
     proof
+}
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod gix_tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn make_receipt() -> SimReceipt {
+        SimReceipt {
+            receipt_id:       "sim-test-001".into(),
+            twin_id:          "twin-abc".into(),
+            agent_id:         "agent-xyz".into(),
+            session_id:       None,
+            n_trajectories:   100,
+            n_feasible:       42,
+            winning_traj_id:  "traj-07".into(),
+            winner_score:     0.91,
+            merkle_root:      "a".repeat(64),
+            policy_hash:      "b".repeat(64),
+            proof_of_sim:     "c".repeat(64),
+            outcome:          SimOutcome::PolicySelected,
+            zangbeto_anchor:  None,
+            witness_event_id: None,
+            created_at:       Utc::now(),
+            signature:        String::new(),
+            gix1_canonical_id: None,
+        }
+    }
+
+    #[test]
+    fn stamp_gix1_sets_canonical_id() {
+        let mut r = make_receipt();
+        r.stamp_gix1();
+        let id = r.gix1_canonical_id.as_ref().expect("gix1_canonical_id must be set");
+        assert_eq!(id.len(), 64);
+    }
+
+    #[test]
+    fn stamp_gix1_is_idempotent() {
+        let mut r = make_receipt();
+        r.stamp_gix1();
+        let first = r.gix1_canonical_id.clone();
+        r.stamp_gix1();
+        assert_eq!(r.gix1_canonical_id, first);
+    }
+
+    #[test]
+    fn two_receipts_have_distinct_gix1_ids() {
+        let mut r1 = make_receipt();
+        let mut r2 = make_receipt();
+        r2.receipt_id = "sim-test-002".into();
+        r1.stamp_gix1();
+        r2.stamp_gix1();
+        assert_ne!(r1.gix1_canonical_id, r2.gix1_canonical_id);
+    }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

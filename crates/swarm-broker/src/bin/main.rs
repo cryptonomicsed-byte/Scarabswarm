@@ -69,7 +69,7 @@ async fn run_simulation(
     let (merkle_root, policy_hash, proof_of_sim) =
         osovm_delegation::compute_receipt_fields(&osovm_result);
 
-    let receipt = SimReceipt {
+    let mut receipt = SimReceipt {
         receipt_id:       receipt_id.clone(),
         twin_id:          req.twin_id.clone(),
         agent_id:         req.agent_id.clone(),
@@ -86,7 +86,9 @@ async fn run_simulation(
         witness_event_id: None,
         created_at:       Utc::now(),
         signature:        String::new(),
+        gix1_canonical_id: None,
     };
+    receipt.stamp_gix1();
 
     let hash = receipt.canonical_hash();
     s.receipts.write().unwrap().insert(receipt_id.clone(), receipt.clone());
