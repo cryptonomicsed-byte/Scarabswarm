@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use ed25519_dalek::{Signer, SigningKey};
 use gix_types::{Gix1, GixKind, GixNamespace, RoutingHints};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -60,6 +61,58 @@ impl SimReceipt {
         );
         sha256_hex(data.as_bytes())
     }
+
+    /// Sign `canonical_hash()` with an Ed25519 key and store the hex signature.
+    ///
+    /// Key resolution order:
+    ///   1. `SCARAB_AGENT_KEY` env var — 32-byte hex seed.
+    ///   2. Ephemeral key generated once per process (warning logged).
+    ///
+    /// Returns `&mut self` for chaining.
+    pub fn sign(&mut self) -> &mut Self {
+        let key = load_signing_key();
+        let payload_hash = self.canonical_hash();
+        let signature = key.sign(payload_hash.as_bytes());
+        self.signature = hex::encode(signature.to_bytes());
+        self
+    }
+}
+
+// ── Ed25519 key loading ───────────────────────────────────────────────────────
+
+use std::sync::OnceLock;
+
+static SIGNING_KEY: OnceLock<SigningKey> = OnceLock::new();
+
+/// Load (or generate) the agent Ed25519 signing key.
+/// Reads `SCARAB_AGENT_KEY` (64 hex chars = 32-byte seed) from the environment,
+/// or generates a one-time ephemeral key with a warning.
+pub fn load_signing_key() -> &'static SigningKey {
+    SIGNING_KEY.get_or_init(|| {
+        if let Ok(raw) = std::env::var("SCARAB_AGENT_KEY") {
+            let raw = raw.trim().to_string();
+            if raw.len() == 64 {
+                if let Ok(bytes) = hex::decode(&raw) {
+                    if let Ok(seed) = <[u8; 32]>::try_from(bytes.as_slice()) {
+                        tracing::info!("ScarabSwarm: Ed25519 key loaded from SCARAB_AGENT_KEY");
+                        return SigningKey::from_bytes(&seed);
+                    }
+                }
+            }
+            tracing::warn!(
+                "ScarabSwarm: SCARAB_AGENT_KEY is set but invalid (expected 64 hex chars). \
+                 Falling back to ephemeral key."
+            );
+        } else {
+            tracing::warn!(
+                "ScarabSwarm: SCARAB_AGENT_KEY not set — using ephemeral Ed25519 key. \
+                 Set SCARAB_AGENT_KEY=<64-hex-chars> for persistent identity."
+            );
+        }
+        // Ephemeral fallback
+        use rand::rngs::OsRng;
+        SigningKey::generate(&mut OsRng)
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

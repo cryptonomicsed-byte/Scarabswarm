@@ -89,6 +89,7 @@ async fn run_simulation(
         gix1_canonical_id: None,
     };
     receipt.stamp_gix1();
+    receipt.sign(); // E-32: Ed25519 signature over canonical_hash
 
     let hash = receipt.canonical_hash();
     s.receipts.write().unwrap().insert(receipt_id.clone(), receipt.clone());
